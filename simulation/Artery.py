@@ -38,6 +38,9 @@ def problem_parameters(commandline_kwargs, NS_parameters, NS_expressions, **NS_n
         number_of_cycles = 2
 
         NS_parameters.update(
+            # Backflow parameters
+            backflow_facets=[],
+            backflow_beta=0.5,
             # Fluid parameters
             nu=3.3018e-3,  # Kinematic viscosity: 0.0035 Pa-s / 1060 kg/m^3 = 3.3018E-6 m^2/s = 3.3018-3 mm^2/ms
             # Geometry parameters
@@ -193,6 +196,19 @@ def pre_solve_hook(mesh, V, Q, newfolder, mesh_path, restart_folder, velocity_de
 
     return dict(eval_dict=eval_dict, boundary=boundary, n=n, U=U, u_mean=u_mean, u_mean0=u_mean0, u_mean1=u_mean1,
                 u_mean2=u_mean2, save_solution_at_tstep=save_solution_at_tstep)
+
+
+def u_dot_n(u, n):
+    return (dot(u, n) - abs(dot(u, n))) / 2
+
+
+def velocity_tentative_hook(mesh, boundary, u_ab, x_1, b, A, ui, u, v, backflow_facets, backflow_beta, **NS_namespace):
+    for ID in backflow_facets:
+        ds = Measure("ds", domain=mesh, subdomain_data=boundary)
+        n = FacetNormal(mesh)
+        K = assemble(u_dot_n(u_ab, n) * dot(u, v) * ds(ID))
+        A.axpy(-backflow_beta * 0.5, K, True)
+        b[ui].axpy(backflow_beta * 0.5, K * x_1[ui])
 
 
 # Oasis hook called after each time step
