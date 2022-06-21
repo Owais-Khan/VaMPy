@@ -21,7 +21,19 @@ def compute_flow_and_simulation_metrics(folder, nu, dt, velocity_degree):
     """
     # File paths
     file_path_u = path.join(folder, "u.h5")
-    mesh_path = path.join(folder, "mesh.h5")
+
+    meshfilename=glob(folder+"/mesh.h5")
+    if len(glob(folder+"/mesh.h5"))==1:    
+	    mesh_path = path.join(folder, "mesh.h5")
+
+	    # Get mesh information
+	    mesh = Mesh()
+	    with HDF5File(MPI.comm_world, mesh_path, "r") as mesh_file:
+	        mesh_file.read(mesh, "mesh", False)
+    elif len(glob(folder+"/mesh.xml.gz"))==1:
+            mesh_path = path.join(folder,"mesh.xml.gz")
+            mesh=Mesh(mesh_path)
+
 
     f = HDF5File(MPI.comm_world, file_path_u, "r")
 
@@ -31,11 +43,6 @@ def compute_flow_and_simulation_metrics(folder, nu, dt, velocity_degree):
         print("The post processing starts from", start)
 
     dataset_names = get_dataset_names(f, start=start)
-
-    # Get mesh information
-    mesh = Mesh()
-    with HDF5File(MPI.comm_world, mesh_path, "r") as mesh_file:
-        mesh_file.read(mesh, "mesh", False)
 
     # Function space
     DG = FunctionSpace(mesh, 'DG', 0)
